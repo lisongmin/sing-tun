@@ -234,7 +234,10 @@ func (t *NativeTun) configure(tunLink netlink.Link) error {
 			addr4, _ := netlink.ParseAddr(address.String())
 			err = netlink.AddrAdd(tunLink, addr4)
 			if err != nil {
-				return err
+				if err == unix.EEXIST {
+					continue
+				}
+				return E.Cause(err, "add addr v4")
 			}
 		}
 	}
@@ -243,7 +246,10 @@ func (t *NativeTun) configure(tunLink netlink.Link) error {
 			addr6, _ := netlink.ParseAddr(address.String())
 			err = netlink.AddrAdd(tunLink, addr6)
 			if err != nil {
-				return err
+				if err == unix.EEXIST {
+					continue
+				}
+				return E.Cause(err, "add addr v6")
 			}
 		}
 	}
@@ -290,7 +296,7 @@ func (t *NativeTun) configure(tunLink netlink.Link) error {
 
 	err = netlink.LinkSetUp(tunLink)
 	if err != nil {
-		return err
+		return E.Cause(err, "link up")
 	}
 
 	if t.options.TableIndex == 0 {
@@ -726,6 +732,9 @@ func (t *NativeTun) setRoute(tunLink netlink.Link) error {
 	for i, route := range routes {
 		err := netlink.RouteAdd(&route)
 		if err != nil {
+			if err == unix.EEXIST {
+				continue
+			}
 			return E.Cause(err, "add route ", i)
 		}
 	}
@@ -736,6 +745,9 @@ func (t *NativeTun) setRules() error {
 	for i, rule := range t.rules() {
 		err := netlink.RuleAdd(rule)
 		if err != nil {
+			if err == unix.EEXIST {
+				continue
+			}
 			return E.Cause(err, "add rule ", i, "/", len(t.rules()))
 		}
 	}
