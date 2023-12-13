@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"syscall"
 	"time"
 
@@ -141,13 +142,19 @@ func (s *System) start() error {
 
 func (s *System) tryListenTcp6(listener net.ListenConfig) (net.Listener, error) {
 	var err error
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		tcpListener, err := listener.Listen(s.ctx, "tcp6", net.JoinHostPort(s.inet6ServerAddress.String(), "0"))
 		if err == nil {
 			return tcpListener, nil
 		}
 		if opErr, ok := err.(*net.OpError); ok && opErr.Err == syscall.EADDRNOTAVAIL {
 			time.Sleep(time.Millisecond * 10)
+			s.logger.Warn("Trying to listen tcp6 again for EADDRNOTAVAIL")
+			continue
+		}
+		if strings.Contains(err.Error(), "bind: cannot assign requested address") {
+			time.Sleep(time.Millisecond * 10)
+			s.logger.Warn("Trying to listen tcp6 again for cannot assign requested address")
 			continue
 		}
 
