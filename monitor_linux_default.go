@@ -36,5 +36,11 @@ func (m *defaultInterfaceMonitor) checkUpdate() error {
 		m.emit(EventInterfaceUpdate)
 		return nil
 	}
+
+	m.logger.Warn(ErrNoRoute)
+	for _, r := range routes {
+		m.logger.Debug("Route found: dst=%s gw=%s via=%s", r.Dst, r.Gw, r.Via)
+	}
+
 	return ErrNoRoute
 }
