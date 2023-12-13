@@ -137,13 +137,7 @@ func (s *System) start() error {
 		go s.acceptLoop(tcpListener)
 	}
 	if s.inet6Address.IsValid() {
-		for i := 0; i < 3; i++ {
-			tcpListener, err = listener.Listen(s.ctx, "tcp6", net.JoinHostPort(s.inet6ServerAddress.String(), "0"))
-			if !retryableListenError(err) {
-				break
-			}
-			time.Sleep(time.Second)
-		}
+		tcpListener, err := s.tryListenTcp6(listener)
 		if err != nil {
 			return err
 		}
@@ -154,6 +148,22 @@ func (s *System) start() error {
 	s.tcpNat = NewNat(s.ctx, time.Second*time.Duration(s.udpTimeout))
 	s.udpNat = udpnat.New[netip.AddrPort](s.udpTimeout, s.handler)
 	return nil
+}
+
+func (s *System) tryListenTcp6(listener net.ListenConfig) (net.Listener, error) {
+	var err error
+	for i := 0; i < 100; i++ {
+		tcpListener, err := listener.Listen(s.ctx, "tcp6", net.JoinHostPort(s.inet6ServerAddress.String(), "0"))
+		if err == nil {
+			return tcpListener, nil
+		}
+		if retryableListenError(err) {
+			time.Sleep(time.Millisecond * 10)
+			continue
+		}
+		return nil, err
+	}
+	return nil, err
 }
 
 func (s *System) tunLoop() {
